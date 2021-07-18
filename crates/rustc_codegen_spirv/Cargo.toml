@@ -1,0 +1,57 @@
+[package]
+name = "rustc_codegen_spirv"
+version = "0.4.0-alpha.9"
+authors = ["Embark <opensource@embark-studios.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/EmbarkStudios/rust-gpu"
+#keywords = []
+#categories = []
+#readme = "README.md"
+
+[lib]
+crate-type = ["dylib"]
+
+[features]
+# By default, the use-compiled-tools is enabled, as doesn't require additional
+# setup steps for the user. This does however mean that you will need to disable
+# default features and explicitly enable `use-installed-tools` if you are using
+# this in an environment with spirv-tools in PATH, and you don't want to take
+# the compile time cost
+default = ["use-compiled-tools"]
+# If enabled, uses spirv-tools binaries installed in PATH, instead of
+# compiling and linking the spirv-tools C++ code
+use-installed-tools = ["spirv-tools/use-installed-tools"]
+# If enabled will compile and link the C++ code for the spirv tools, the compiled
+# version is preferred if both this and `use-installed-tools` are enabled
+use-compiled-tools = ["spirv-tools/use-compiled-tools"]
+
+[dependencies]
+# HACK(eddyb) these only exist to unify features across dependency trees,
+# in order to avoid multiple separate instances of `rustc_codegen_spirv`.
+hashbrown = { version = "0.11", features = ["default"] }
+libc = { version = "0.2", features = ["align", "extra_traits"] }
+num-traits = { version = "0.2", features = ["libm"] }
+syn = { version = "1", features = ["visit", "visit-mut"] }
+
+# Normal dependencies.
+bimap = "0.6"
+indexmap = "1.6.0"
+rspirv = { git = "https://github.com/gfx-rs/rspirv.git", rev = "c2a11ba7961fa7c675800f50c1903f0e96c633f8" }
+rustc-demangle = "0.1.18"
+sanitize-filename = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+smallvec = "1.6.1"
+spirv-tools = { version = "0.6.1", default-features = false }
+tar = "0.4.30"
+topological-sort = "0.1"
+
+[dev-dependencies]
+pipe = "0.4"
+pretty_assertions = "0.7"
+tempfile = "3.2"
+
+[package.metadata.rust-analyzer]
+# This crate uses #[feature(rustc_private)]
+rustc_private = true
