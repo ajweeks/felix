@@ -23,19 +23,19 @@ pub struct MeshShaderConstants {
 
 pub const MAX_NUM_BONES: usize = 4;
 
-#[derive(Copy, Clone /*, Zeroable, Pod*/)]
+#[derive(Copy, Clone , Zeroable, Pod)]
 #[repr(C)]
 pub struct ComputeSkinningShaderConstants {
     pub bone_poses: [f32; 16 * MAX_NUM_BONES],
 }
 
-#[derive(Copy, Clone /*, Zeroable, Pod*/)]
+#[derive(Copy, Clone , Zeroable, Pod)]
 #[repr(C)]
 pub struct BonePoseBuffer {
     pub bone_poses: [f32; 16 * MAX_NUM_BONES],
 }
 
-#[derive(Copy, Clone /*, Zeroable, Pod*/)]
+#[derive(Copy, Clone , Zeroable, Pod)]
 #[repr(C)]
 pub struct SkinningVertexBuffer {
     pub bone_positions: [f32; 4 * MAX_NUM_BONES],

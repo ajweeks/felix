@@ -82,13 +82,16 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn load_gltf_mesh(mesh_path: &str) -> Mesh {
-        println!("Loading mesh {}...", mesh_path);
+        let path = format!(
+            "{}/assets/meshes/{}",
+            std::env::current_dir().unwrap().to_str().unwrap(),
+            mesh_path
+        );
+        println!("Loading mesh {}...", path);
 
-        let gltf = Gltf::open(format!("assets/meshes/{}", mesh_path)).expect("Failed to load mesh");
-        let glb = Glb::from_reader(
-            fs::File::open(format!("assets/meshes/{}", mesh_path)).expect("Failed to load mesh"),
-        )
-        .expect("Failed to load mesh");
+        let gltf = Gltf::open(&path).expect("Failed to load mesh");
+        let glb = Glb::from_reader(fs::File::open(path).expect("Failed to load mesh"))
+            .expect("Failed to load mesh");
 
         // println!("Mesh has {} scene(s)", gltf.scenes().count());
 
@@ -298,7 +301,6 @@ impl Mesh {
                                     bytes.read_exact(&mut element_bytes).unwrap();
                                     let index = LittleEndian::read_i32(&element_bytes[0..4]);
                                     output.push(index);
-                                    // println!("index: {}", index);
                                 }
                             }
 

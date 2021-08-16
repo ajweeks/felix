@@ -43,8 +43,7 @@ impl VkBuffer {
     }
 
     pub fn destroy(&self, allocator: &Allocator) {
-        allocator
-            .destroy_buffer(self.buffer, &self.allocation)
+        allocator.destroy_buffer(self.buffer, &self.allocation)
     }
 
     pub fn copy_from_slice<T>(&self, slice: &[T], offset: usize)
@@ -85,8 +84,7 @@ impl VkImage {
     }
 
     pub fn destroy(&self, allocator: &Allocator) {
-        allocator
-            .destroy_image(self.image, &self.allocation)
+        allocator.destroy_image(self.image, &self.allocation)
     }
 }
 

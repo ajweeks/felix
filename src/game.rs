@@ -277,17 +277,16 @@ impl Game {
 
         let shader_files = compile_shaders();
 
+        let meshes_to_load = ["spring-extended.glb"]; // ,"skinned-box.glb"
+
         let mut meshes = Vec::new();
 
-        let start = Instant::now();
-        meshes.push(Mesh::load_gltf_mesh("spring-extended.glb"));
-        let duration = Instant::now() - start;
-        println!("Mesh load completed in {:.2}s", duration.as_secs());
-
-        // let start = Instant::now();
-        // meshes.push(Mesh::load_gltf_mesh("skinned-box.glb"));
-        // let duration = Instant::now() - start;
-        // println!("Mesh load completed in {:.2}s", duration.as_secs());
+        for mesh_path in meshes_to_load {
+            let start = Instant::now();
+            meshes.push(Mesh::load_gltf_mesh(mesh_path));
+            let duration = Instant::now() - start;
+            println!("Mesh load completed in {:.2}s", duration.as_secs());
+        }
 
         eprintln!("Num shader files loaded: {}", shader_files.len());
 
@@ -299,27 +298,15 @@ impl Game {
             &shader_files["compute_skinning"],
         );
 
-        // Mesh renderers
-        let render_meshes = vec![
-            // RenderMesh::new(
-            //     &base.device,
-            //     &base.allocator,
-            //     &descriptor_pool,
-            //     &render_pass,
-            //     &view_scissor,
-            //     mesh,
-            //     &shader_files[0],
-            // ),
-            RenderMeshPass::new(
-                &base.device,
-                &base.allocator,
-                &descriptor_pool,
-                &render_pass,
-                &view_scissor,
-                &meshes[0],
-                &shader_files["pbr"],
-            ),
-        ];
+        let render_meshes = vec![RenderMeshPass::new(
+            &base.device,
+            &base.allocator,
+            &descriptor_pool,
+            &render_pass,
+            &view_scissor,
+            &meshes[0],
+            &shader_files["pbr"],
+        )];
 
         // Submit initialization command buffer before rendering starts
         base.record_submit_commandbuffer(
@@ -329,7 +316,6 @@ impl Game {
             &[],
             &[],
             |device, command_buffer| {
-                // GPU setup commands
                 compute_skinning_pass.gpu_setup(device, &command_buffer);
 
                 for mesh in &render_meshes {
@@ -353,7 +339,6 @@ impl Game {
     }
 
     pub fn run_update_loop(&mut self, window: &crate::Window, event_loop: &mut EventLoop<()>) {
-        // Window event loop
         println!("Start window event loop");
 
         let mut inputs_prev: Inputs = Default::default();

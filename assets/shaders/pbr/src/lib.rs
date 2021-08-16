@@ -27,22 +27,15 @@ pub fn main_vs(
     in_normal: Vec3,
     in_texcoord: Vec2,
     in_colour: Vec4,
-    // in_bone_indices: IVec4,
-    // in_bone_weights: Vec4,
     #[spirv(position, invariant)] out_pos: &mut Vec4,
     out_position_ws: &mut Vec4,
     out_normal: &mut Vec3,
     out_texcoord: &mut Vec2,
     out_colour: &mut Vec4,
     #[spirv(push_constant)] constants: &MeshShaderConstants,
-    //bone_pose_buffer: &mut BonePoseBuffer,
 ) {
     let mut pos = in_pos;
     pos.y *= (constants.time * 2.0).sin() * 0.2 + 0.9;
-
-    // let index_start = (in_bone_indices[0] * 16) as usize;
-    // let pose0 = Mat4::from_cols_slice(&bone_pose_buffer.bone_poses[index_start..index_start + 16]);
-
     
     let object_to_world = Mat4::from_cols_array(&constants.object_to_world);
     *out_position_ws = object_to_world /* * pose0 */ * Vec4::from((pos, 0.0));
@@ -51,7 +44,6 @@ pub fn main_vs(
     *out_texcoord = in_texcoord;
     *out_colour = in_colour;
     *out_pos = Mat4::from_cols_array(&constants.world_to_screen) * Vec4::from((pos, 1.0));
-    // *out_position_ws;
 }
 
 #[spirv(fragment)]
@@ -61,7 +53,7 @@ pub fn main_fs(
     in_texcoord: Vec2,
     in_colour: Vec4,
     out_frag_colour: &mut Vec4,
-    //#[spirv(push_constant)] constants: &MeshShaderConstants,
+    #[spirv(push_constant)] constants: &MeshShaderConstants,
 ) {
     let l = Vec3::new(0.5, 0.5, 0.5).normalize();
     let n_dot_l = in_normal.dot(l);
@@ -69,6 +61,7 @@ pub fn main_fs(
     // *out_frag_colour = Vec4::from((in_normal, 1.0));
     // *out_frag_colour *= in_colour;
     // *out_frag_colour *= Vec4::from((in_texcoord, 1.0, 1.0));
+    *out_frag_colour *= 5.0 * (constants.time.sin() * 0.5 + 0.5);
     //let colour = Vec3::new(constants.color[0], constants.color[1], constants.color[2]);
     //*out_frag_colour = Vec4::from((in_colour.xyz() * colour * n_dot_l, constants.color[3]));
 }
