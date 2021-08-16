@@ -45,7 +45,6 @@ impl VkBuffer {
     pub fn destroy(&self, allocator: &Allocator) {
         allocator
             .destroy_buffer(self.buffer, &self.allocation)
-            .expect("Buffer destroy failed");
     }
 
     pub fn copy_from_slice<T>(&self, slice: &[T], offset: usize)
@@ -88,7 +87,6 @@ impl VkImage {
     pub fn destroy(&self, allocator: &Allocator) {
         allocator
             .destroy_image(self.image, &self.allocation)
-            .expect("Image destroy failed");
     }
 }
 

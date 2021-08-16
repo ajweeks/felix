@@ -105,36 +105,51 @@ pub struct SpvFile {
     pub data: Vec<u32>,
 }
 
-pub fn compile_shaders() -> HashMap::<String, SpvFile> {
-    let shaders = ["pbr", "compute_skinning"];
+pub fn compile_shaders() -> HashMap<String, SpvFile> {
+    if let Ok(read_dir) = std::fs::read_dir("assets/shaders") {
+        let ignored_shader_dirs = ["shared"];
 
-    let spv_paths: Vec<PathBuf> = shaders
-        .iter()
-        .map(|shader_name| {
-            SpirvBuilder::new(
-                format!("assets/shaders/{}", shader_name),
-                "spirv-unknown-spv1.3",
-            )
-            .print_metadata(MetadataPrintout::None)
-            .build()
-            .unwrap()
-            .module
-            .unwrap_single()
-            .to_path_buf()
-        })
-        .collect();
+        let shaders = read_dir.map(|dir_entry| match dir_entry {
+            Ok(dir_entry) => (
+                dir_entry.file_name().into_string().unwrap(),
+                dir_entry.path(),
+            ),
+            Err(_) => (String::new(), PathBuf::default()),
+        });
 
-    let mut spv_files = HashMap::<String, SpvFile>::with_capacity(spv_paths.len());
-    for (path, shader_name) in spv_paths.iter().zip(shaders.iter()) {
-        spv_files.insert(
-            shader_name.to_string(),
-            SpvFile {
-                name: (*shader_name).to_owned(),
-                data: Mesh::read_spv(&mut File::open(path).unwrap()).unwrap(),
-            },
-        );
+        let mut spv_files = HashMap::<String, SpvFile>::new();
+        for (shader_name, path) in shaders {
+            if shader_name.is_empty() || ignored_shader_dirs.contains(&shader_name.as_str()) {
+                continue;
+            }
+
+            let result = SpirvBuilder::new(path, "spirv-unknown-spv1.3")
+                .print_metadata(MetadataPrintout::None)
+                .build();
+
+            match result {
+                Ok(result) => {
+                    let path = result.module.unwrap_single().to_path_buf();
+
+                    let data = Mesh::read_spv(&mut File::open(path).unwrap()).unwrap();
+
+                    spv_files.insert(
+                        shader_name.clone(),
+                        SpvFile {
+                            name: shader_name,
+                            data,
+                        },
+                    );
+                }
+                Err(err) => {
+                    eprintln!("Failed to build shader `{}`, error: {}", shader_name, err);
+                }
+            }
+        }
+        spv_files
+    } else {
+        HashMap::new()
     }
-    spv_files
 }
 
 impl Game {

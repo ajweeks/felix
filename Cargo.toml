@@ -26,19 +26,33 @@ vk-mem = "0.2.2"
 miniz_oxide = "0.4.4"
 serde = "1.0.126"
 serde_json = "1.0.64"
-#egui = "0.12.0"
 notify = "4.0.17"
 lazy_static = "1.4.0"
 gltf = "0.16.0"
 byteorder = "1.4.3"
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu" }
+#spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", version = "0.4.0-alpha.10" }
+spirv-builder = { path = "crates/spirv-builder" }
 shared = { path = "assets/shaders/shared" }
 
+# [patch.crates-io]
+# spirv-std = { path = "crates/spirv-std" }
+# spirv-std-macros = { path = "crates/spirv-std/macros" }
+
 [patch.crates-io]
-ash = { path = "D:/Code/ash/ash" }
-ash-window = { path = "D:/Code/ash/ash-window/" }
-vk-mem = { path = "D:/Code/vk-mem-rs/" }
+#ash = { path = "D:/Code/ash/ash" }
+#ash-window = { path = "D:/Code/ash/ash-window/" }
+vk-mem = { git = "https://github.com/ajweeks/vk-mem-rs", version = "0.2.2-fix" }
 
 #[patch.path]
 #ash = { path = "D:/Code/ash/ash" } # "0.32.1"
 #ash-window = { path = "D:/Code/ash/ash-window" } # "0.6.0"
+
+[build-dependencies]
+#spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", version = "0.4.0-alpha.10" }
+spirv-builder = { path = "crates/spirv-builder" }
+
+#itertools = "0.10.1"
+
+# To check out:
+# egui
+# tracing

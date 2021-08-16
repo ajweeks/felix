@@ -27,11 +27,11 @@ const GROUP_SIZE: usize = 8;
 #[spirv(compute(threads(8, 8, 8)))]
 pub fn main_cs(
     #[spirv(global_invocation_id)] id: UVec3,
-    #[spirv(push_constant)] constants: &ComputeSkinningShaderConstants,
-    bone_pose_buffer: BonePoseBuffer,
-    vertex_buffer: &mut SkinningVertexBuffer,
+    //#[spirv(push_constant)] constants: &ComputeSkinningShaderConstants,
+    //bone_pose_buffer: BonePoseBuffer,
+    //vertex_buffer: &mut SkinningVertexBuffer,
 ) {
-    let index = id.x as usize + id.y as usize * GRID_SIZE + id.z as usize * GRID_SIZE * GRID_SIZE;
+    //let index = id.x as usize + id.y as usize * GRID_SIZE + id.z as usize * GRID_SIZE * GRID_SIZE;
     // vertex_buffer.bone_positions[index + 0] = 1.0;
     // vertex_buffer.bone_positions[index + 1] = 2.0;
     // vertex_buffer.bone_positions[index + 2] = 3.0;
