@@ -11,6 +11,7 @@ mod render_mesh_pass;
 mod render_pass_common;
 mod vulkan_base;
 mod vulkan_helpers;
+mod anim;
 
 mod filewatcher;
 mod settings;

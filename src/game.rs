@@ -7,12 +7,12 @@ use winit::{
     platform::run_return::EventLoopExtRunReturn,
 };
 
-use std::{collections::HashMap, fs::File, path::PathBuf, time::Instant};
+use std::{collections::HashMap, fs::File, path::PathBuf, rc::Rc, time::Instant};
 
-use crate::compute_skinning_pass::ComputeSkinningPass;
-use crate::mesh::Mesh;
+use crate::mesh::{Mesh, read_spv};
 use crate::settings;
 use crate::vulkan_helpers::*;
+use crate::{compute_skinning_pass::ComputeSkinningPass, mesh::AnimatedVertex, mesh::Vertex};
 use crate::{render_mesh_pass::RenderMeshPass, vulkan_base::*};
 
 use settings::*;
@@ -61,7 +61,8 @@ pub struct Game {
     camera: Camera,
     settings_wrapper: SettingsWrapper,
     compute_skinning_pass: ComputeSkinningPass,
-    meshes: Vec<Mesh>,
+    static_meshes: Vec<Rc<Mesh<Vertex>>>,
+    animated_meshes: Vec<Rc<Mesh<AnimatedVertex>>>,
     render_meshes: Vec<RenderMeshPass>,
     descriptor_pool: vk::DescriptorPool,
     framebuffers: Vec<vk::Framebuffer>,
@@ -131,7 +132,7 @@ pub fn compile_shaders() -> HashMap<String, SpvFile> {
                 Ok(result) => {
                     let path = result.module.unwrap_single().to_path_buf();
 
-                    let data = Mesh::read_spv(&mut File::open(path).unwrap()).unwrap();
+                    let data = read_spv(&mut File::open(path).unwrap()).unwrap();
 
                     spv_files.insert(
                         shader_name.clone(),
@@ -277,15 +278,24 @@ impl Game {
 
         let shader_files = compile_shaders();
 
-        let meshes_to_load = ["spring-extended.glb"]; // ,"skinned-box.glb"
+        let static_meshes_to_load = ["spring-extended.glb"];
+        let animated_meshes_to_load = ["skinned-box.glb"];
 
-        let mut meshes = Vec::new();
+        let mut static_meshes = Vec::new();
+        let mut animated_meshes = Vec::new();
 
-        for mesh_path in meshes_to_load {
+        for mesh_path in static_meshes_to_load {
             let start = Instant::now();
-            meshes.push(Mesh::load_gltf_mesh(mesh_path));
+            static_meshes.push(Rc::new(Mesh::load_gltf_mesh(mesh_path)));
             let duration = Instant::now() - start;
-            println!("Mesh load completed in {:.2}s", duration.as_secs());
+            println!("Mesh load completed in {:.2}s", duration.as_secs_f32());
+        }
+        
+        for mesh_path in animated_meshes_to_load {
+            let start = Instant::now();
+            animated_meshes.push(Rc::new(Mesh::load_gltf_mesh(mesh_path)));
+            let duration = Instant::now() - start;
+            println!("Mesh load completed in {:.2}s", duration.as_secs_f32());
         }
 
         eprintln!("Num shader files loaded: {}", shader_files.len());
@@ -294,7 +304,7 @@ impl Game {
             &base.device,
             &base.allocator,
             &descriptor_pool,
-            &meshes[0],
+            Rc::downgrade(&animated_meshes[0]),
             &shader_files["compute_skinning"],
         );
 
@@ -304,7 +314,7 @@ impl Game {
             &descriptor_pool,
             &render_pass,
             &view_scissor,
-            &meshes[0],
+            &static_meshes[0],
             &shader_files["pbr"],
         )];
 
@@ -328,7 +338,8 @@ impl Game {
             base,
             camera: Camera::new(Vec3::new(0.0, 6.0, -7.0)),
             settings_wrapper: SettingsWrapper::create_from_file(),
-            meshes,
+            static_meshes,
+            animated_meshes,
             compute_skinning_pass,
             render_meshes,
             descriptor_pool,
@@ -501,20 +512,19 @@ impl Game {
                         |device, command_buffer| {
                             // Compute pass
 
-                            let mut bone_poses = [0.0; 16 * shared::MAX_NUM_BONES];
-                            for (i, bone) in self.meshes[0].bone_poses.iter().enumerate() {
-                                let bone_mat: [f32; 16] = bone.transform.to_cols_array();
+                            let mut inv_bone_poses = [0.0; 16 * shared::MAX_NUM_JOINTS];
+                            for (i, bone) in self.animated_meshes[0].bone_inv_bind_poses.iter().enumerate() {
+                                let bone_mat: [f32; 16] = bone.to_cols_array();
                                 for j in 0..16 {
-                                    bone_poses[i * 16 + j] = bone_mat[j];
+                                    inv_bone_poses[i * 16 + j] = bone_mat[j];
                                 }
                             }
 
                             // Update compute skinning constants
-                            let shader_constants =
-                                shared::ComputeSkinningShaderConstants { bone_poses };
+                            let skinning_constants = shared::SkinningConstants { t: 0.0 };
 
                             self.compute_skinning_pass.dispatch(
-                                &shader_constants,
+                                &skinning_constants,
                                 device,
                                 &command_buffer,
                             );

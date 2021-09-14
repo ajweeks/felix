@@ -1,5 +1,6 @@
 use glam::*;
 use shared::MeshShaderConstants;
+use std::any::TypeId;
 use std::default::Default;
 use std::ffi::CString;
 
@@ -14,10 +15,12 @@ use crate::vulkan_helpers::*;
 #[allow(dead_code)]
 pub struct RenderMeshPass {
     pub pipeline_layout: vk::PipelineLayout,
-    pub index_buffer: VkBuffer,
-    pub index_buffer_gpu: VkBuffer,
+    pub index_buffer: Option<VkBuffer>,
+    pub index_buffer_gpu: Option<VkBuffer>,
     pub vertex_buffer: VkBuffer,
     pub vertex_buffer_gpu: VkBuffer,
+    pub vertex_count: u32,
+    pub index_count: u32,
     pub desc_set_layout: vk::DescriptorSetLayout,
     pub graphics_pipeline: vk::Pipeline,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
@@ -26,15 +29,18 @@ pub struct RenderMeshPass {
 }
 
 impl RenderMeshPass {
-    pub fn new(
+    pub fn new<VertexType: IVertex>(
         device: &Device,
         allocator: &vk_mem::Allocator,
         descriptor_pool: &vk::DescriptorPool,
         render_pass: &vk::RenderPass,
         view_scissor: &VkViewScissor,
-        mesh: &Mesh,
+        mesh: &Mesh<VertexType>,
         shader_file: &SpvFile,
-    ) -> RenderMeshPass {
+    ) -> RenderMeshPass
+    where
+        VertexType: Copy + 'static,
+    {
         let alloc_info_cpu = vk_mem::AllocationCreateInfo {
             usage: vk_mem::MemoryUsage::CpuOnly,
             flags: vk_mem::AllocationCreateFlags::MAPPED,
@@ -48,7 +54,7 @@ impl RenderMeshPass {
 
         let submesh = &mesh.submeshes[0];
 
-        let vertex_buffer_data = &submesh.vertices;
+        let vertex_buffer_data = &submesh.vertex_buffer.vertices;
 
         let vertex_buffer_info = vk::BufferCreateInfo {
             size: std::mem::size_of_val(&vertex_buffer_data[..]) as u64,
@@ -69,26 +75,38 @@ impl RenderMeshPass {
 
         let vertex_buffer_gpu = VkBuffer::new(allocator, &vertex_buffer_gpu_info, &alloc_info_gpu);
 
-        let index_buffer_data = &submesh.indices;
-
-        let index_buffer_info = vk::BufferCreateInfo {
-            size: std::mem::size_of_val(&index_buffer_data[..]) as u64,
-            usage: vk::BufferUsageFlags::TRANSFER_SRC,
-            sharing_mode: vk::SharingMode::EXCLUSIVE,
-            ..Default::default()
+        let index_count = if let Some(index_buffer) = &submesh.index_buffer {
+            index_buffer.len() as u32
+        } else {
+            0
         };
 
-        let index_buffer = VkBuffer::new(allocator, &index_buffer_info, &alloc_info_cpu);
-        index_buffer.copy_from_slice(&index_buffer_data[..], 0);
+        let (index_buffer, index_buffer_gpu) =
+            if let Some(index_buffer_data) = &submesh.index_buffer {
+                let index_buffer_info = vk::BufferCreateInfo {
+                    size: std::mem::size_of_val(&index_buffer_data[..]) as u64,
+                    usage: vk::BufferUsageFlags::TRANSFER_SRC,
+                    sharing_mode: vk::SharingMode::EXCLUSIVE,
+                    ..Default::default()
+                };
 
-        let index_buffer_gpu_info = vk::BufferCreateInfo {
-            size: std::mem::size_of_val(&index_buffer_data[..]) as u64,
-            usage: vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
-            sharing_mode: vk::SharingMode::EXCLUSIVE,
-            ..Default::default()
-        };
+                let index_buffer = VkBuffer::new(allocator, &index_buffer_info, &alloc_info_cpu);
+                index_buffer.copy_from_slice(&index_buffer_data[..], 0);
 
-        let index_buffer_gpu = VkBuffer::new(allocator, &index_buffer_gpu_info, &alloc_info_gpu);
+                let index_buffer_gpu_info = vk::BufferCreateInfo {
+                    size: std::mem::size_of_val(&index_buffer_data[..]) as u64,
+                    usage: vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
+                    sharing_mode: vk::SharingMode::EXCLUSIVE,
+                    ..Default::default()
+                };
+
+                let index_buffer_gpu =
+                    VkBuffer::new(allocator, &index_buffer_gpu_info, &alloc_info_gpu);
+
+                (Some(index_buffer), Some(index_buffer_gpu))
+            } else {
+                (None, None)
+            };
 
         let desc_layout_bindings = [
             //vk::DescriptorSetLayoutBinding {
@@ -195,36 +213,74 @@ impl RenderMeshPass {
             .collect::<Vec<_>>();
 
         let offset = 0;
-        let vertex_attribute_descriptions = [
-            // Position
-            vk::VertexInputAttributeDescription::builder()
-                .binding(0)
-                .offset(offset)
-                .location(0)
-                .format(vk::Format::R32G32B32_SFLOAT)
-                .build(),
-            // Normal
-            vk::VertexInputAttributeDescription::builder()
-                .binding(0)
-                .offset(0)
-                .location(1)
-                .format(vk::Format::R32G32B32_SFLOAT)
-                .build(),
-            // Texcoord
-            vk::VertexInputAttributeDescription::builder()
-                .binding(0)
-                .offset(0)
-                .location(2)
-                .format(vk::Format::R32G32_SFLOAT)
-                .build(),
-            // Colour
-            vk::VertexInputAttributeDescription::builder()
-                .binding(0)
-                .offset(0)
-                .location(3)
-                .format(vk::Format::R32G32B32A32_SFLOAT)
-                .build(),
-        ];
+
+        let vertex_type_id = TypeId::of::<VertexType>();
+        let vertex_attribute_descriptions = if vertex_type_id == TypeId::of::<Vertex>() {
+            [
+                // Position
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(offset)
+                    .location(0)
+                    .format(vk::Format::R32G32B32_SFLOAT)
+                    .build(),
+                // Normal
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(1)
+                    .format(vk::Format::R32G32B32_SFLOAT)
+                    .build(),
+                // Texcoord
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(2)
+                    .format(vk::Format::R32G32_SFLOAT)
+                    .build(),
+                // Colour
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(3)
+                    .format(vk::Format::R32G32B32A32_SFLOAT)
+                    .build(),
+            ]
+        } else if vertex_type_id == TypeId::of::<AnimatedVertex>() {
+            [
+                // Position
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(offset)
+                    .location(0)
+                    .format(vk::Format::R32G32B32_SFLOAT)
+                    .build(),
+                // Normal
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(1)
+                    .format(vk::Format::R32G32B32_SFLOAT)
+                    .build(),
+                // Texcoord
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(2)
+                    .format(vk::Format::R32G32_SFLOAT)
+                    .build(),
+                // Colour
+                vk::VertexInputAttributeDescription::builder()
+                    .binding(0)
+                    .offset(0)
+                    .location(3)
+                    .format(vk::Format::R32G32B32A32_SFLOAT)
+                    .build(),
+                // TODO:
+            ]
+        } else {
+            panic!("Unhandled vertex type")
+        };
 
         let mesh_stride = std::mem::size_of::<f32>() as u32 * 3 + // pos
             std::mem::size_of::<f32>() as u32 * 3 + // normal
@@ -328,6 +384,8 @@ impl RenderMeshPass {
             index_buffer_gpu,
             vertex_buffer,
             vertex_buffer_gpu,
+            vertex_count: submesh.vertex_buffer.vertex_count,
+            index_count,
             desc_set_layout,
             graphics_pipeline,
             descriptor_sets,
@@ -339,11 +397,6 @@ impl RenderMeshPass {
     pub fn update(&self) {}
 
     pub fn gpu_setup(&self, device: &Device, command_buffer: &vk::CommandBuffer) {
-        let index_buffer_copy_regions = vk::BufferCopy {
-            src_offset: 0,
-            dst_offset: 0,
-            size: self.index_buffer.size,
-        };
         let vertex_buffer_copy_regions = vk::BufferCopy {
             src_offset: 0,
             dst_offset: 0,
@@ -367,22 +420,48 @@ impl RenderMeshPass {
             ..Default::default()
         };
 
-        let index_buffer_barrier = vk::BufferMemoryBarrier {
-            dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
-            buffer: self.index_buffer_gpu.buffer,
-            offset: 0,
-            size: index_buffer_copy_regions.size,
-            ..Default::default()
-        };
+        let mut buffer_memory_barriers = Vec::new();
+        let mut buffer_memory_end_barriers = Vec::new();
 
-        let index_buffer_barrier_end = vk::BufferMemoryBarrier {
-            src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
-            dst_access_mask: vk::AccessFlags::INDEX_READ,
-            buffer: self.index_buffer_gpu.buffer,
-            offset: 0,
-            size: index_buffer_copy_regions.size,
-            ..Default::default()
-        };
+        buffer_memory_barriers.push(vertex_buffer_barrier);
+        buffer_memory_end_barriers.push(vertex_buffer_barrier_end);
+
+        if let (Some(index_buffer), Some(index_buffer_gpu)) =
+            (&self.index_buffer, &self.index_buffer_gpu)
+        {
+            let index_buffer_copy_regions = vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: index_buffer.size,
+            };
+            let index_buffer_barrier = vk::BufferMemoryBarrier {
+                dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                buffer: index_buffer_gpu.buffer,
+                offset: 0,
+                size: index_buffer_copy_regions.size,
+                ..Default::default()
+            };
+            let index_buffer_barrier_end = vk::BufferMemoryBarrier {
+                src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                dst_access_mask: vk::AccessFlags::INDEX_READ,
+                buffer: index_buffer_gpu.buffer,
+                offset: 0,
+                size: index_buffer_copy_regions.size,
+                ..Default::default()
+            };
+
+            buffer_memory_barriers.push(index_buffer_barrier);
+            buffer_memory_end_barriers.push(index_buffer_barrier_end);
+
+            unsafe {
+                device.cmd_copy_buffer(
+                    *command_buffer,
+                    index_buffer.buffer,
+                    index_buffer_gpu.buffer,
+                    &[index_buffer_copy_regions],
+                );
+            }
+        }
 
         unsafe {
             device.cmd_pipeline_barrier(
@@ -391,21 +470,17 @@ impl RenderMeshPass {
                 vk::PipelineStageFlags::TRANSFER,
                 vk::DependencyFlags::empty(),
                 &[],
-                &[vertex_buffer_barrier, index_buffer_barrier],
+                buffer_memory_barriers.as_slice(),
                 &[],
             );
+        }
 
+        unsafe {
             device.cmd_copy_buffer(
                 *command_buffer,
                 self.vertex_buffer.buffer,
                 self.vertex_buffer_gpu.buffer,
                 &[vertex_buffer_copy_regions],
-            );
-            device.cmd_copy_buffer(
-                *command_buffer,
-                self.index_buffer.buffer,
-                self.index_buffer_gpu.buffer,
-                &[index_buffer_copy_regions],
             );
 
             device.cmd_pipeline_barrier(
@@ -414,7 +489,7 @@ impl RenderMeshPass {
                 vk::PipelineStageFlags::VERTEX_INPUT,
                 vk::DependencyFlags::empty(),
                 &[],
-                &[vertex_buffer_barrier_end, index_buffer_barrier_end],
+                buffer_memory_end_barriers.as_slice(),
                 &[],
             );
         };
@@ -449,12 +524,14 @@ impl RenderMeshPass {
                 &[0],
             );
 
-            device.cmd_bind_index_buffer(
-                *command_buffer,
-                self.index_buffer_gpu.buffer,
-                0,
-                vk::IndexType::UINT32,
-            );
+            if let Some(index_buffer_gpu) = &self.index_buffer_gpu {
+                device.cmd_bind_index_buffer(
+                    *command_buffer,
+                    index_buffer_gpu.buffer,
+                    0,
+                    vk::IndexType::UINT32,
+                );
+            }
 
             let push_constants = shader_constants;
             device.cmd_push_constants(
@@ -465,14 +542,11 @@ impl RenderMeshPass {
                 any_as_u8_slice(push_constants),
             );
 
-            device.cmd_draw_indexed(
-                *command_buffer,
-                self.index_buffer_gpu.size as u32 / std::mem::size_of::<u32>() as u32,
-                1,
-                0,
-                0,
-                0,
-            );
+            if self.index_count > 0 {
+                device.cmd_draw_indexed(*command_buffer, self.index_count, 1, 0, 0, 0);
+            } else {
+                device.cmd_draw(*command_buffer, self.vertex_count, 1, 0, 0);
+            }
         }
     }
 
@@ -481,8 +555,12 @@ impl RenderMeshPass {
             device.destroy_pipeline(self.graphics_pipeline, None);
             device.destroy_pipeline_layout(self.pipeline_layout, None);
             device.destroy_shader_module(self.shader_module, None);
-            self.index_buffer.destroy(allocator);
-            self.index_buffer_gpu.destroy(allocator);
+            if let Some(index_buffer) = &self.index_buffer {
+                index_buffer.destroy(allocator);
+            }
+            if let Some(index_buffer_gpu) = &self.index_buffer_gpu {
+                index_buffer_gpu.destroy(allocator);
+            }
             device.destroy_descriptor_set_layout(self.desc_set_layout, None);
         }
     }

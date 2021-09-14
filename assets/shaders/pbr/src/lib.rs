@@ -18,7 +18,7 @@ use spirv_std::macros::spirv;
 
 use shared::{
     glam::{IVec4, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles},
-    BonePoseBuffer, MeshShaderConstants, SkinningVertexBuffer,
+    MeshShaderConstants, SkinningVertexBuffer1,
 };
 
 #[spirv(vertex)]
@@ -54,7 +54,7 @@ pub fn main_fs(
     in_colour: Vec4,
     out_frag_colour: &mut Vec4,
     #[spirv(push_constant)] constants: &MeshShaderConstants,
-) {
+) { 
     let l = Vec3::new(0.5, 0.5, 0.5).normalize();
     let n_dot_l = in_normal.dot(l);
     *out_frag_colour = Vec4::new(in_position_ws.x, in_position_ws.z, 0.0, 1.0);

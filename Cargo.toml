@@ -56,3 +56,4 @@ spirv-builder = { path = "crates/spirv-builder" }
 # To check out:
 # egui
 # tracing
+# macaw
