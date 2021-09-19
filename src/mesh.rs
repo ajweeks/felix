@@ -246,32 +246,9 @@ impl<VertexType: IVertex + Clone + Default + 'static> VertexBuffer<VertexType> {
         joint_weights: Option<Vec<[f32; 4]>>,
     ) -> VertexBuffer<VertexType> {
         let mut vertex_count: usize = 0;
-        // let mut attributes = 0;
         if let Some(positions) = &positions {
-            // attributes |= VertexAttribute::Position as u32;
             vertex_count = positions.len();
         }
-        // if normals.is_some() {
-        //     attributes |= VertexAttribute::Normal as u32;
-        // }
-        // if tex_coords.is_some() {
-        //     attributes |= VertexAttribute::TexCoord0 as u32;
-        // }
-        // if colours.is_some() {
-        //     attributes |= VertexAttribute::Color0 as u32;
-        // }
-        // if joint_indices.is_some() {
-        //     attributes |= VertexAttribute::JointIndices as u32;
-        // }
-        // if joint_weights.is_some() {
-        //     attributes |= VertexAttribute::JointWeights as u32;
-        // }
-
-        // println!("{}, {}", attributes , VertexType::ATTRIBUTES);
-        // assert!(attributes == VertexType::ATTRIBUTES);
-
-        // let stride = calculate_stride(VertexType::ATTRIBUTES);
-
         let mut buffer = VertexBuffer::<VertexType> {
             vertices: Vec::new(),
             vertex_count: vertex_count as u32,
@@ -294,87 +271,8 @@ impl<VertexType: IVertex + Clone + Default + 'static> VertexBuffer<VertexType> {
             );
         }
 
-        //let size_of_f32 = std::mem::size_of::<f32>();
-        //let size_of_u32 = std::mem::size_of::<u32>();
-
-        //let mut offset: usize = 0;
-        // for i in 0..vertex_count {
-        //     if let Some(positions) = &positions {
-        //         //let buffer_ptr: *mut u32 = &mut buffer.buffer[buffer_offset];
-        //         let stride = size_of_f32 * 3;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &positions[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        //     if let Some(normals) = &normals {
-        //         let stride = size_of_f32 * 3;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &normals[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        //     if let Some(tex_coords) = &tex_coords {
-        //         let stride = size_of_f32 * 2;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &tex_coords[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        //     if let Some(colours) = &colours {
-        //         let stride = size_of_f32 * 4;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &colours[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        //     if let Some(joint_indices) = &joint_indices {
-        //         let stride = size_of_u32 * 4;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &joint_indices[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        //     if let Some(joint_weights) = &joint_weights {
-        //         let stride = size_of_f32 * 4;
-        //         unsafe {
-        //             buffer.copy_from_slice(offset, &joint_weights[i]);
-        //         }
-        //         offset += stride;
-        //     }
-        // }
-
         buffer
     }
-
-    // unsafe fn copy_from_slice<T>(&mut self, offset: usize, slice: &[T]) {
-    //     std::ptr::copy_nonoverlapping(
-    //         slice.as_ptr() as *const u8,
-    //         self.buffer[offset] as *mut u8,
-    //         slice.len(),
-    //     );
-    // }
-}
-
-fn calculate_stride(attributes: u32) -> u32 {
-    let mut result: u32 = 0;
-
-    let size_of_f32 = std::mem::size_of::<f32>() as u32;
-
-    if attributes & VertexAttribute::Position as u32 != 0 {
-        result += size_of_f32 * 3;
-    }
-    if attributes & VertexAttribute::Normal as u32 != 0 {
-        result += size_of_f32 * 3;
-    }
-    if attributes & VertexAttribute::TexCoord0 as u32 != 0 {
-        result += size_of_f32 * 2;
-    }
-    if attributes & VertexAttribute::Color0 as u32 != 0 {
-        result += size_of_f32 * 4;
-    }
-
-    result
 }
 
 pub struct SubMesh<VertexType: IVertex + Clone + Default + 'static> {
@@ -418,41 +316,10 @@ impl<VertexType: IVertex + Clone + Default> Mesh<VertexType> {
             //    scene.nodes().count()
             //);
             for node in scene.nodes() {
-                // TODO: unmut
                 let mut bytes = Cursor::new(glb.bin.as_ref().unwrap());
 
                 println!("Skin: {}", node.skin().is_some());
                 if let Some(skin) = node.skin() {
-                    // if let Some(accessor) = skin.inverse_bind_matrices() {
-                    //     let view = accessor.view().unwrap();
-                    //     const STRIDE: usize = 16 * 4;
-                    //     bytes.seek(SeekFrom::Start((view.offset()) as u64)).unwrap();
-                    //     let mut element_bytes = [0; STRIDE];
-                    //     for _ in 0..accessor.count() {
-                    //         bytes.read_exact(&mut element_bytes).unwrap();
-                    //         let mut mat_values = [[0.0; 4]; 4];
-                    //         let mut j = 0;
-                    //         for i in 0..4 {
-                    //             let x = LittleEndian::read_f32(&element_bytes[(j + 0)..(j + 4)]);
-                    //             let y = LittleEndian::read_f32(&element_bytes[(j + 4)..(j + 8)]);
-                    //             let z = LittleEndian::read_f32(&element_bytes[(j + 8)..(j + 12)]);
-                    //             let w = LittleEndian::read_f32(&element_bytes[(j + 12)..(j + 16)]);
-                    //             mat_values[i] = [x, y, z, w];
-                    //             j += 16;
-                    //         }
-                    //         bone_poses.push(Bone::from(Mat4::from_cols(
-                    //             Vec4::from(mat_values[0]),
-                    //             Vec4::from(mat_values[1]),
-                    //             Vec4::from(mat_values[2]),
-                    //             Vec4::from(mat_values[3]),
-                    //         )));
-                    //         println!(
-                    //             "bone poses: {}",
-                    //             &bone_poses[bone_poses.len() - 1].transform
-                    //         );
-                    //     }
-                    // }
-
                     println!("Bone count: {}\nBones:", skin.joints().count());
                     for joint in skin.joints() {
                         let matrix = joint.transform().matrix();
@@ -538,12 +405,8 @@ impl<VertexType: IVertex + Clone + Default> Mesh<VertexType> {
                             joint_weights,
                         );
 
-
-
                         std::fs::write("buffer.txt", format!("{:#?}", vertex_buffer)).unwrap();
 
-
-                        
                         submeshes.push(SubMesh {
                             vertex_buffer,
                             index_buffer,
