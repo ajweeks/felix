@@ -2,11 +2,9 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Mutex,
-    thread,
-    time::Duration,
 };
 
-use notify::{DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Error, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 struct FileWatcher {
     watcher: RecommendedWatcher,
@@ -15,23 +13,19 @@ struct FileWatcher {
 
 impl FileWatcher {
     fn new() -> Self {
-        let (tx, rx) = std::sync::mpsc::channel();
+        // let (tx, rx) = std::sync::mpsc::channel();
 
-        let watcher: RecommendedWatcher = Watcher::new(tx, Duration::from_millis(50)).unwrap();
-
-        thread::spawn(move || loop {
-            match rx.recv() {
-                Ok(DebouncedEvent::Write(path)) => {
+        let mut watcher = notify::recommended_watcher(|res: Result<Event, Error>| match res {
+            Ok(event) => {
+                for path in event.paths {
                     if let Some(ref callback) = FILE_WATCHER.lock().unwrap().callbacks.get(&path) {
                         callback();
                     }
                 }
-                Err(e) => {
-                    eprintln!("File watch error: {:?}", e);
-                }
-                _ => (),
             }
-        });
+            Err(e) => println!("File watch error: {:?}", e),
+        })
+        .unwrap();
 
         FileWatcher {
             watcher,
@@ -39,15 +33,21 @@ impl FileWatcher {
         }
     }
 
-    fn watch<F: Fn() + Sync + Send + 'static>(&mut self, path: &str, callback: F) {
+    fn watch<F: Fn() + Sync + Send + 'static>(
+        &mut self,
+        path: &str,
+        callback: F,
+    ) -> anyhow::Result<()> {
         let path = Path::new(path).canonicalize().unwrap();
+
         if !self.callbacks.contains_key(&path) {
             self.watcher
-                .watch(path.clone(), RecursiveMode::NonRecursive)
-                .unwrap();
+                .watch(path.as_path(), RecursiveMode::NonRecursive)?;
         }
 
         self.callbacks.insert(path, Box::new(callback));
+
+        Ok(())
     }
 }
 

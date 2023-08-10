@@ -16,7 +16,7 @@ use spirv_std::num_traits::Float;
 #[cfg(not(target_arch = "spirv"))]
 use spirv_std::macros::spirv;
 
-use shared::glam::{UVec3};
+use shared::glam::UVec3;
 //use shared::{SkeletonPoseGPU, SkinningConstants, SkinningVertexBuffer0, SkinningVertexBuffer1, glam::{Mat4, Quat, UVec3, Vec2, Vec3, Vec4, Vec4Swizzles}};
 
 const GRID_SIZE: usize = 8;
@@ -37,8 +37,6 @@ pub fn main_cs(
     // vertex_buffer.bone_positions[index + 1] = 2.0;
     // vertex_buffer.bone_positions[index + 2] = 3.0;
     // vertex_buffer.bone_positions[index + 3] = 4.0;
-
-
 
     // let index = id.x as usize;
     // let size_of_f32 = 4;

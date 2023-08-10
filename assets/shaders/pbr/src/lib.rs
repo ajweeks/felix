@@ -36,7 +36,7 @@ pub fn main_vs(
 ) {
     let mut pos = in_pos;
     pos.y *= (constants.time * 2.0).sin() * 0.2 + 0.9;
-    
+
     let object_to_world = Mat4::from_cols_array(&constants.object_to_world);
     *out_position_ws = object_to_world /* * pose0 */ * Vec4::from((pos, 0.0));
 
@@ -54,7 +54,7 @@ pub fn main_fs(
     in_colour: Vec4,
     out_frag_colour: &mut Vec4,
     #[spirv(push_constant)] constants: &MeshShaderConstants,
-) { 
+) {
     let l = Vec3::new(0.5, 0.5, 0.5).normalize();
     let n_dot_l = in_normal.dot(l);
     *out_frag_colour = Vec4::new(in_position_ws.x, in_position_ws.z, 0.0, 1.0);

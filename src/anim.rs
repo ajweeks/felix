@@ -67,7 +67,7 @@ impl AnimClipCPU {
             _ => panic!("Unexpected value"),
         }
     }
-    
+
     //pub fn add_vec4(&mut self, val: Vec4, property: Property) {
     //    match property {
     //        Property::Translation => self.positions.as_mut().unwrap().push(val),

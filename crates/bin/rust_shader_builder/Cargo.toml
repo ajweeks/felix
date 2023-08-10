@@ -1,0 +1,13 @@
+[package]
+name = "builder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+nanoserde = "0.1"
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "b692ab5afc7fbdb4599b42ab3e0328dc7e8e0e97" }
+
+[workspace]

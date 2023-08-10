@@ -2,12 +2,13 @@
 name = "pbr"
 version = "0.1.0"
 authors = ["AJ Weeks"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["lib", "dylib"]
 
 [dependencies]
 shared = { path = "../../shaders/shared" }
-spirv-std = { path = "../../../crates/spirv-std", features = ["glam"] }
-bytemuck = "1.7.0"
+spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "c2f98b612abb55e0eb453ebd87c2cff218d7cf67" }
+bytemuck = "1.13.1"
+#zeroable = "0.2.0"
